@@ -1,7 +1,5 @@
 # owiki-sync
 
-[English](#english) · 中文
-
 Obsidian 笔记同步插件——配合自部署的 [OWiki](https://cnb.cool/johnhom1024/owiki-monorepo) 服务端，实现 vault 的多端实时同步。
 
 数据只经过你自己的服务器，不经过任何第三方云。
@@ -74,19 +72,3 @@ pnpm typecheck   # 类型检查
 ## License
 
 [MIT](LICENSE)
-
----
-
-## English
-
-Obsidian plugin that syncs your vault across devices through a self-hosted [OWiki](https://cnb.cool/johnhom1024/owiki-monorepo) server (Go + WebSocket + SQLite). Your notes never touch a third-party cloud.
-
-**Features**: hash-based incremental sync (only changed files transfer), real-time push with 2s debounce, three-way merge with conflict files (`xxx.conflict.md`), automatic reconnect with exponential backoff, first-class rename/delete, per-device PIN authorization. Works on desktop and mobile.
-
-**Requires** a self-hosted OWiki server — one `docker run` (see above) or a single binary. Create a vault in the web console and grab its sync token.
-
-**Install**: search `owiki-sync` in Community plugins (once listed), or grab `main.js` / `manifest.json` / `styles.css` from [Releases](https://github.com/johnhom1024/owiki-sync/releases) and drop them into `<your-vault>/.obsidian/plugins/owiki-sync/`. Before it's listed, you can also install it via [BRAT](https://github.com/TfTHacker/obsidian42-brat): add `johnhom1024/owiki-sync` as a beta plugin and it will auto-update with each release.
-
-**Usage**: enable the plugin, enter the server URL and sync token. The first reconciliation pulls everything down; afterwards edits sync automatically.
-
-MIT License.
