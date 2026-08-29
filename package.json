@@ -1,0 +1,25 @@
+{
+	"name": "owiki-sync",
+	"version": "1.0.0",
+	"description": "Sync your vault with a self-hosted owiki via WebSocket.",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "node esbuild.config.mjs production",
+		"typecheck": "tsc --noEmit"
+	},
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin",
+		"sync"
+	],
+	"author": "johnhom",
+	"license": "MIT",
+	"devDependencies": {
+		"esbuild": "^0.28.2",
+		"obsidian": "^1.13.1",
+		"typescript": "^7.0.2",
+		"@types/node": "^26.2.0",
+		"builtin-modules": "^5.3.0"
+	}
+}

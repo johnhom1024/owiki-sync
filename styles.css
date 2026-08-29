@@ -1,0 +1,329 @@
+/* ============================================================
+   owiki-sync 样式（方案 B）
+   原则：全部使用 Obsidian 主题 CSS 变量，明暗主题自动适配；
+   不硬编码颜色，不引外部资源。
+   ============================================================ */
+
+/* ---------- ribbon 图标 ---------- */
+/* 默认不设色——继承主题 --icon-color，与原生图标一体。
+   连接成功点亮；同步进行中旋转（refresh-cw 图标本身是环形箭头）。 */
+.owiki-ribbon.owiki-connected {
+  color: var(--icon-color-active, var(--interactive-accent));
+}
+.owiki-ribbon.owiki-syncing svg {
+  animation: owiki-spin 1s linear infinite;
+}
+@keyframes owiki-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- 状态栏 ---------- */
+.owiki-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.owiki-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: none;
+  background: var(--text-faint);
+}
+.owiki-dot-authed {
+  background: var(--text-success);
+}
+.owiki-dot-connecting,
+.owiki-dot-connected,
+.owiki-dot-syncing {
+  background: var(--text-warning);
+}
+.owiki-dot-connecting,
+.owiki-dot-syncing {
+  animation: owiki-pulse 1.2s ease-in-out infinite;
+}
+@keyframes owiki-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.owiki-status-vault {
+  color: var(--text-muted);
+}
+
+/* 内联进度条（同步中） */
+.owiki-progress {
+  display: inline-block;
+  width: 64px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--background-modifier-border);
+  overflow: hidden;
+  vertical-align: middle;
+  flex: none;
+}
+.owiki-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--interactive-accent);
+  transition: width 0.3s ease;
+}
+
+/* ---------- 设置页：分节标题 ---------- */
+.owiki-section-heading {
+  margin: 1.75em 0 0.75em;
+  padding-top: 0.75em;
+  border-top: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+/* 第一节（状态卡下方）不需要顶部分隔线 */
+.owiki-section-heading:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* ---------- 设置页：状态仪表卡 ---------- */
+.owiki-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  padding: 14px 16px;
+  margin: 0.5em 0 1em;
+}
+.owiki-status-card.owiki-status-ok .owiki-status-icon {
+  color: var(--text-success);
+}
+/* 未连接/未授权：用 muted（比 faint 深一档）——faint 叠在卡片浅底上
+   对比度不足 2:1，circle-dashed 的细虚线会"看不见" */
+.owiki-status-card.owiki-status-off .owiki-status-icon {
+  color: var(--text-muted);
+}
+.owiki-status-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.owiki-status-icon {
+  display: inline-flex;
+  align-items: center;
+}
+.owiki-status-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.owiki-status-title {
+  font-size: var(--font-ui-medium);
+  font-weight: 600;
+}
+.owiki-status-meta {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+.owiki-status-server {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-monospace);
+  word-break: break-all;
+}
+.owiki-status-server svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+.owiki-muted {
+  color: var(--text-faint);
+}
+.owiki-status-chips {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.owiki-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smallest);
+  font-weight: 500;
+  user-select: none;
+}
+.owiki-chip-accent {
+  color: var(--interactive-accent);
+}
+
+/* ---------- callout（未授权指引 / 弹窗警告） ---------- */
+.owiki-callout {
+  border-radius: var(--radius-s);
+  padding: 10px 12px;
+  margin: 0.5em 0 1em;
+}
+.owiki-callout-title {
+  font-weight: 600;
+  font-size: var(--font-ui-smaller);
+}
+.owiki-callout-body {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.5;
+}
+.owiki-callout-warning {
+  /* 同危险区原则：中性背景 + 警示色边框/文字，避免主题的实色 *-hover 变量 */
+  background: var(--background-secondary);
+  border-left: 3px solid var(--text-warning);
+}
+.owiki-callout-warning .owiki-callout-title {
+  color: var(--text-warning);
+}
+.owiki-callout-info {
+  background: var(--background-modifier-hover);
+  border-left: 3px solid var(--interactive-accent);
+}
+
+/* ---------- 确认弹窗 ---------- */
+.owiki-confirm-list {
+  margin: 0.5em 0 1em;
+}
+.owiki-confirm-list dt {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  margin-top: 0.5em;
+}
+.owiki-confirm-list dd {
+  margin: 0 0 0.25em;
+  font-family: var(--font-monospace);
+}
+.owiki-confirm-secret {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.owiki-confirm-secret span:first-child {
+  word-break: break-all;
+}
+.owiki-eye-btn {
+  padding: 2px 6px;
+  background: none;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+.owiki-eye-btn:hover {
+  color: var(--text-normal);
+}
+.owiki-confirm-hint {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+.owiki-confirm-buttons {
+  display: flex;
+  gap: 0.5em;
+  justify-content: flex-end;
+  margin-top: 1em;
+}
+
+/* ---------- 危险操作 ---------- */
+/* 不再使用红框卡片（Web 端惯例，在 Obsidian 设置页里突兀）：
+   危险操作收为页面底部普通设置行 + 确认弹窗，红色按钮本身标识危险。
+   mod-warning 按钮红色由 Obsidian 原生提供。 */
+.owiki-disconnect-list {
+  margin: 0.5em 0;
+  padding-left: 1.2em;
+  color: var(--text-normal);
+}
+.owiki-disconnect-list li {
+  margin: 0.3em 0;
+}
+
+/* ---------- 诊断小节 ---------- */
+.owiki-subsection {
+  margin-top: 0.75em;
+}
+.owiki-subsection-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 0.5em;
+  padding: 0 2px;
+}
+.owiki-subsection-head > span:first-child {
+  font-weight: 600;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-normal);
+}
+/* 版本表 */
+.owiki-version-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85em;
+}
+.owiki-log-wrap,
+.owiki-version-info {
+  /* 兼容旧类名 */
+}
+.owiki-version-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 0.25em 0.75em 0.25em 0;
+  width: 11em;
+  white-space: nowrap;
+}
+.owiki-version-table td {
+  font-family: var(--font-monospace);
+  color: var(--text-normal);
+  padding: 0.25em 0;
+}
+
+/* ---------- 日志 ---------- */
+.owiki-log-box {
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: var(--radius-s);
+  box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+  background: var(--background-secondary);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0 0 0.75em;
+}
+.owiki-log-line {
+  display: block;
+}
+.owiki-log-time {
+  color: var(--text-faint);
+  margin-right: 6px;
+}
+.owiki-log-level {
+  font-weight: 600;
+  margin-right: 6px;
+}
+.owiki-log-info .owiki-log-level { color: var(--text-muted); }
+.owiki-log-debug .owiki-log-level { color: var(--text-faint); }
+.owiki-log-warn .owiki-log-level { color: var(--text-warning); }
+.owiki-log-warn .owiki-log-msg { color: var(--text-warning); }
+.owiki-log-error .owiki-log-level { color: var(--text-error); }
+.owiki-log-error .owiki-log-msg { color: var(--text-error); }
+.owiki-log-empty {
+  color: var(--text-faint);
+}
