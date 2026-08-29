@@ -42,7 +42,7 @@ docker run -d --name owiki \
 <你的库>/.obsidian/plugins/owiki-sync/
 ```
 
-**测试版**：可用 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 添加 `johnhom1024/owiki-sync` 安装。
+**上架前尝鲜（BRAT）**：安装 [BRAT](https://github.com/TfTHacker/obsidian42-brat) 插件，在其设置里 Add Beta plugin 填入 `johnhom1024/owiki-sync`，即可在官方市场上架前安装本插件，并随 GitHub Release 自动更新。
 
 ## 使用
 
@@ -85,7 +85,7 @@ Obsidian plugin that syncs your vault across devices through a self-hosted [OWik
 
 **Requires** a self-hosted OWiki server — one `docker run` (see above) or a single binary. Create a vault in the web console and grab its sync token.
 
-**Install**: search `owiki-sync` in Community plugins (once listed), or grab `main.js` / `manifest.json` / `styles.css` from [Releases](https://github.com/johnhom1024/owiki-sync/releases) and drop them into `<your-vault>/.obsidian/plugins/owiki-sync/`.
+**Install**: search `owiki-sync` in Community plugins (once listed), or grab `main.js` / `manifest.json` / `styles.css` from [Releases](https://github.com/johnhom1024/owiki-sync/releases) and drop them into `<your-vault>/.obsidian/plugins/owiki-sync/`. Before it's listed, you can also install it via [BRAT](https://github.com/TfTHacker/obsidian42-brat): add `johnhom1024/owiki-sync` as a beta plugin and it will auto-update with each release.
 
 **Usage**: enable the plugin, enter the server URL and sync token. The first reconciliation pulls everything down; afterwards edits sync automatically.
 
