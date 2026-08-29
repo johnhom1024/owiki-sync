@@ -1,5 +1,7 @@
 # owiki-sync
 
+中文 · [English](README.en.md)
+
 Obsidian 笔记同步插件——配合自部署的 [OWiki](https://cnb.cool/johnhom1024/owiki-monorepo) 服务端，实现 vault 的多端实时同步。
 
 数据只经过你自己的服务器，不经过任何第三方云。
