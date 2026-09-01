@@ -57,6 +57,22 @@ export interface Welcome {
   serverAt: string
   /** owiki 服务端版本（编译时通过 -ldflags 注入），客户端设置页展示 */
   serverVersion?: string
+  /**
+   * 本连接是否具备文件同步资格（单设备同步模式下非 pin 设备为 false）。
+   * false 时连接保持（授权/心跳/解绑正常），但文件同步消息会被服务端拒绝、
+   * 也收不到变更广播。老服务端不带该字段 → 按具备同步资格处理（兼容）。
+   */
+  syncEnabled?: boolean
+}
+
+/**
+ * 服务端主动推送：单设备同步开关或 pin 设备变化，本连接同步资格
+ * 在线切换。enabled=true 时应补一次全量对账（静默期间没有广播可收）。
+ */
+export interface SyncState {
+  type: 'sync_state'
+  syncEnabled: boolean
+  message?: string
 }
 
 export type DiffAction = 'upload' | 'download'
@@ -126,6 +142,7 @@ export interface Deleted {
 
 export type ServerMessage =
   | Welcome
+  | SyncState
   | HashListResponse
   | OK
   | ErrMsg

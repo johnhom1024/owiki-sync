@@ -135,8 +135,11 @@ export default class OwikiSyncPlugin extends Plugin {
       onState: (s) => this.updateStatusBar(s),
       onMessage: (m) => this.handleMessage(m),
       // 认证成功（首连+每次重连）→ 记录授权的 vault 名 + 自动补对账
-      onAuthed: (vault) => {
-        this.logger.info('auth', `认证成功${vault ? `，远程 vault=「${vault}」` : ''}`)
+      onAuthed: (vault, syncEnabled) => {
+        this.logger.info(
+          'auth',
+          `认证成功${vault ? `，远程 vault=「${vault}」` : ''}${syncEnabled === false ? '（非同步设备，观察态）' : ''}`,
+        )
         if (this.pendingConfirm) {
           // 设置页发起的连接：先弹确认框，确认后才开同步
           this.pendingConfirm = false
@@ -160,6 +163,12 @@ export default class OwikiSyncPlugin extends Plugin {
           void this.saveSettings()
           this.rerenderSettings()
         }
+        // 观察态：单设备同步模式下本设备未被选中——不启动同步，
+        // 状态卡/状态栏由 connState='observing' 驱动展示
+        if (syncEnabled === false) {
+          this.updateStatusBar('observing')
+          return
+        }
         // 改名触发的重连：内容没变，跳过这次自动对账
         if (this.skipNextSync) {
           this.skipNextSync = false
@@ -167,6 +176,25 @@ export default class OwikiSyncPlugin extends Plugin {
           return
         }
         void this.syncNow()
+      },
+      // 同步资格在线切换（服务端 sync_state 推送）：静默 ↔ 同步互转
+      onSyncEnabledChanged: (enabled, message) => {
+        this.logger.info('auth', message ?? (enabled ? '同步已恢复' : '本设备已被静默'))
+        if (enabled) {
+          new Notice(`Owiki: ${message ?? '本设备已恢复同步，开始对账'}`)
+          // 静默期间收不到广播：恢复时必须补全量对账
+          void this.syncNow()
+        } else {
+          // 被静默：清掉排队中的上传（否则恢复后会一股脑传出去）
+          this.pendingUploads.clear()
+          this.pendingForce.clear()
+          this.syncTotal = 0
+          this.syncDone = 0
+          this.syncDownPaths.clear()
+          new Notice(`Owiki: ${message ?? '本设备未被选为同步设备，文件变更不会同步'}`)
+          this.updateStatusBar('observing')
+        }
+        this.rerenderSettings()
       },
       // 认证失败 → 按原因区分提示，并清除本地授权状态
       onAuthFailed: (message) => {
@@ -395,6 +423,11 @@ export default class OwikiSyncPlugin extends Plugin {
   async syncNow(): Promise<void> {
     if (!this.client.connected) {
       new Notice('Owiki: 未连接服务器')
+      return
+    }
+    if (this.client.connState === 'observing') {
+      // 单设备同步模式：本设备未被选中，服务端会拒绝对账——不发起
+      new Notice('Owiki: 本设备未被选为同步设备（单设备同步模式），修改不会同步')
       return
     }
     this.logger.info('sync', '开始全量对账')
@@ -833,6 +866,7 @@ export default class OwikiSyncPlugin extends Plugin {
     // 连接成功点亮；同步进行中加旋转动画（见 styles.css）
     document.querySelectorAll('.owiki-ribbon').forEach((el) => {
       el.classList.toggle('owiki-connected', state === 'authed')
+      el.classList.toggle('owiki-observing', state === 'observing')
       el.classList.toggle('owiki-syncing', this.syncTotal > 0)
     })
     if (!this.statusBarItem) return
@@ -842,7 +876,7 @@ export default class OwikiSyncPlugin extends Plugin {
       return
     }
     const vaultName = this.settings.authorizedVault
-    // 状态点 + 文案（颜色见 styles.css：绿=已连接，灰=断开，黄=连接中）
+    // 状态点 + 文案（颜色见 styles.css：绿=已连接，灰=断开，黄=连接中，紫=观察态）
     this.statusBarItem.empty()
     this.statusBarItem.addClass('owiki-status')
     this.statusBarItem.createSpan({ cls: `owiki-dot owiki-dot-${state}` })
@@ -850,6 +884,11 @@ export default class OwikiSyncPlugin extends Plugin {
     if (state === 'authed') {
       this.statusBarItem.createSpan({
         text: vaultName ? ` · ${vaultName}` : ' · 已授权',
+        cls: 'owiki-status-vault',
+      })
+    } else if (state === 'observing') {
+      this.statusBarItem.createSpan({
+        text: vaultName ? ` · 已连接 ${vaultName}（非同步设备）` : ' · 非同步设备',
         cls: 'owiki-status-vault',
       })
     }
@@ -888,15 +927,18 @@ export default class OwikiSyncPlugin extends Plugin {
 
     // 状态行（不可点击）：连接状态 + 已授权的 vault 名
     const vaultName = this.settings.authorizedVault
-    const stateText = this.client.connected
-      ? `已连接${vaultName ? `，「${vaultName}」同步正常` : '，同步正常'}`
-      : vaultName
-        ? `未连接服务器（已授权「${vaultName}」）`
-        : '未连接服务器'
+    const observing = this.client.connState === 'observing'
+    const stateText = observing
+      ? `已连接${vaultName ? `，「${vaultName}」` : ''}非同步设备（单设备同步模式）`
+      : this.client.connected
+        ? `已连接${vaultName ? `，「${vaultName}」同步正常` : '，同步正常'}`
+        : vaultName
+          ? `未连接服务器（已授权「${vaultName}」）`
+          : '未连接服务器'
     menu.addItem((item) =>
       item
         .setTitle(`● ${stateText}`)
-        .setIcon(this.client.connected ? 'circle-check' : 'circle-off')
+        .setIcon(observing ? 'circle-alert' : this.client.connected ? 'circle-check' : 'circle-off')
         .onClick(() => {
           /* 状态项不可点 */
         }),

@@ -4,17 +4,26 @@
 // - 任何非主动断开（onclose/onerror/认证失败除外）都走 scheduleReconnect
 // - 单一 connect() 入口：清理旧实例再建新连接，防重复连接
 // - 认证成功（welcome.ok）回调 onAuthed，上层据此触发补对账
+// - 单设备同步：welcome.syncEnabled=false 或收到 sync_state(enabled=false)
+//   时进入「观察态」——连接保持（心跳/授权正常），但不发送任何同步消息
 import { ServerMessage } from './protocol'
 
-export type ConnState = 'disconnected' | 'connecting' | 'connected' | 'authed'
+export type ConnState =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'authed'
+  | 'observing' // 已认证，但非单设备同步的选定设备：连接正常，文件同步被服务端拒绝
 
 interface Handlers {
   onState: (state: ConnState) => void
   onMessage: (msg: ServerMessage) => void
   /** 认证成功（含重连后）触发——上层应做补对账；vault 为服务端返回的 vault 名 */
-  onAuthed: (vault?: string) => void
+  onAuthed: (vault?: string, syncEnabled?: boolean) => void
   /** 认证失败（token 无效，如被服务端取消授权）触发 */
   onAuthFailed?: (message?: string) => void
+  /** 同步资格变化（服务端 sync_state 推送）：在线静默 ↔ 在线同步切换 */
+  onSyncEnabledChanged?: (enabled: boolean, message?: string) => void
 }
 
 const PONG_TIMEOUT_MS = 45_000 // 超过此时长没收到任何服务端消息，判定连接已死
@@ -38,6 +47,8 @@ export class OwikiSyncClient {
   private authedVault?: string
   /** 认证成功后服务端告知的服务端版本（来自 welcome.serverVersion），设置页展示用 */
   private authedServerVersion?: string
+  /** 当前连接的文件同步资格（单设备同步模式下非 pin 设备为 false）；undefined=老服务端未告知，视为 true */
+  private syncEnabledFlag: boolean | undefined
 
   constructor(handlers: Handlers) {
     this.handlers = handlers
@@ -78,8 +89,8 @@ export class OwikiSyncClient {
 
   connect(): void {
     if (!this.url) return
-    // 已在连接/认证态就不重复连
-    if (this.ws && (this.state === 'connected' || this.state === 'authed')) return
+    // 已在连接/认证/观察态就不重复连
+    if (this.ws && (this.state === 'connected' || this.state === 'authed' || this.state === 'observing')) return
 
     this.cleanupTimers()
     this.teardownWs() // 清掉可能残留的半开连接
@@ -128,16 +139,27 @@ export class OwikiSyncClient {
         if (msg.ok) {
           this.authedVault = msg.vault
           this.authedServerVersion = msg.serverVersion
-          this.setState('authed')
-          this.handlers.onAuthed(msg.vault) // 重连/首连成功都通知上层补对账
+          this.syncEnabledFlag = msg.syncEnabled
+          // 观察态：已认证但非同步设备。仍算「已连接」（心跳/授权正常），
+          // 但状态机进入 observing，UI 与发送侧据此静默
+          this.setState(msg.syncEnabled === false ? 'observing' : 'authed')
+          this.handlers.onAuthed(msg.vault, msg.syncEnabled)
         } else {
           console.error('[owiki] auth failed:', msg.message)
           this.authedVault = undefined
           this.authedServerVersion = undefined
+          this.syncEnabledFlag = undefined
           this.handlers.onAuthFailed?.(msg.message)
           // token 错误：重连也没用，停下等用户改配置
           this.disconnect()
         }
+        return
+      }
+      if (msg.type === 'sync_state') {
+        // 单设备同步开关/pin 切换：在线切换同步资格，连接不断
+        this.syncEnabledFlag = msg.syncEnabled
+        this.setState(msg.syncEnabled ? 'authed' : 'observing')
+        this.handlers.onSyncEnabledChanged?.(msg.syncEnabled, msg.message)
         return
       }
       if (msg.type === 'ping') {
@@ -187,6 +209,15 @@ export class OwikiSyncClient {
   }
 
   send(msg: string): void {
+    // 观察态拦截：单设备同步模式下本设备未被选中，同步消息会被服务端
+    // 拒绝——直接不发（省流量，也避免服务端日志被无谓的 BLOCKED 刷屏）
+    if (this.state === 'observing') {
+      const type = this.msgType(msg)
+      if (type === 'hashlist' || type === 'upload' || type === 'fetch' || type === 'rename' || type === 'delete') {
+        console.debug('[owiki] observing mode, skip', type)
+        return
+      }
+    }
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.rawSend(msg)
     } else if (this.pending.length < 256) {
@@ -194,13 +225,29 @@ export class OwikiSyncClient {
     }
   }
 
-  get connected(): boolean {
-    return this.state === 'authed'
+  /** 快速取 JSON 消息的 type 字段（观察态拦截用；解析失败返回空串） */
+  private msgType(msg: string): string {
+    const i = msg.indexOf('"type":"')
+    if (i === -1) return ''
+    const start = i + 8
+    const end = msg.indexOf('"', start)
+    return end === -1 ? '' : msg.slice(start, end)
   }
 
-  /** 当前连接状态原始值（设置页状态卡展示用：区分连接中/已连接/认证中等） */
+  get connected(): boolean {
+    // 观察态连接是活的（心跳/授权正常），只是不同步文件——
+    // 对上层「是否已连接服务器」的语义应返回 true
+    return this.state === 'authed' || this.state === 'observing'
+  }
+
+  /** 当前连接状态原始值（设置页状态卡展示用：区分连接中/已连接/认证/观察中等） */
   get connState(): ConnState {
     return this.state
+  }
+
+  /** 当前连接的文件同步资格（老服务端未告知时为 true：老服务端没有单设备拦截） */
+  get syncEnabled(): boolean {
+    return this.syncEnabledFlag !== false
   }
 
   /** 认证成功后服务端告知的 vault 名（未认证为 undefined） */

@@ -6,9 +6,12 @@
 
 /* ---------- ribbon 图标 ---------- */
 /* 默认不设色——继承主题 --icon-color，与原生图标一体。
-   连接成功点亮；同步进行中旋转（refresh-cw 图标本身是环形箭头）。 */
+   连接成功点亮；观察态（非同步设备）用紫色提示；同步进行中旋转（refresh-cw 图标本身是环形箭头）。 */
 .owiki-ribbon.owiki-connected {
   color: var(--icon-color-active, var(--interactive-accent));
+}
+.owiki-ribbon.owiki-observing {
+  color: #8b5cf6;
 }
 .owiki-ribbon.owiki-syncing svg {
   animation: owiki-spin 1s linear infinite;
@@ -34,6 +37,10 @@
 }
 .owiki-dot-authed {
   background: var(--text-success);
+}
+.owiki-dot-observing {
+  /* 观察态（非同步设备）：紫色，与绿（已连接）/黄（连接中）区分 */
+  background: #8b5cf6;
 }
 .owiki-dot-connecting,
 .owiki-dot-connected,

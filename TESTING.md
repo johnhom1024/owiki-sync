@@ -119,21 +119,27 @@ curl -s http://localhost:8787/api/vaults/1/devices | python3 -m json.tool
 ### 5.0 单设备同步（Web 设置页开关）
 
 ```bash
-# 开启：只允许指定 deviceId 的设备连接（须为已登记设备，否则 400）
+# 开启：只允许指定 deviceId 的设备同步文件（须为已登记设备，否则 400）
 # 本机 deviceId 全量：obsidian eval code="app.plugins.plugins['owiki-sync'].fullDeviceId()"
 # （前 8 位用 shortDeviceId() 即可）
 curl -s -X PUT http://localhost:8787/api/vaults/1/single-device \
   -H 'Content-Type: application/json' -b "$COOKIE" \
   -d '{"singleDevice": true, "pinnedDeviceId": "<从 fullDeviceId() 拷贝>"}'
 
-# 预期：
-# - 其他设备 WS 认证返回 welcome.ok=false（"该 vault 已开启「单设备同步」…"），
-#   且不留认证态（被拒后再发同步消息会被拒）
-# - 已连接的其他设备被立即断开
-# - 旧版客户端（hello 不带 deviceId）同样被拒，无法绕过
+# 预期（2026-09-01 语义改版：授权与同步解耦）：
+# - 其他设备 WS 认证照常成功（welcome.ok=true, syncEnabled=false），设备照常登记
+# - 非同步设备的 hashlist/upload/fetch/rename/delete 被服务端拒绝
+#   （error 消息带「单设备同步模式」），插件状态栏/状态卡显示「非同步设备」（紫色状态点）
+# - 非同步设备收不到任何变更广播（完全静默）
+# - pin 切换/开关切换不再断线：在线连接收到 sync_state 推送原地升降级，
+#   被恢复的设备自动补一次全量对账
+# - 旧版客户端（hello 不带 deviceId）在单设备模式下会因 deviceId 匹配不上而静默（连接仍保持）
 # - pin 的设备发 bye 解绑、或 Web 端「取消授权」都会自动清掉 pin
 # 关闭传 {"singleDevice": false} 即恢复所有设备。
 ```
+
+E2E 脚本（18 项断言覆盖上述全部场景）：`/tmp/owiki-e2e/e2e_single_device.py`，
+配套起服务方式：独立 DB + `OWIKI_TOKEN=e2e-token` + 8788 端口，见脚本头部注释。
 
 ### 5.1 插件端「断开并取消授权」（发 bye 解绑）
 

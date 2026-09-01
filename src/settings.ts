@@ -109,6 +109,10 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
     } else if (state === 'authed') {
       stateText = `已连接到远程 OWiki · ${vaultName}`
       icon = 'circle-check'
+    } else if (state === 'observing') {
+      // 单设备同步模式：连接正常但非选定同步设备
+      stateText = `已连接，非同步设备 · ${vaultName}`
+      icon = 'circle-alert'
     } else if (state === 'connecting') {
       stateText = `连接中 · ${vaultName}`
       icon = 'circle-dashed'
@@ -121,6 +125,19 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
     }
     setIcon(iconEl, icon)
     main.createSpan({ cls: 'owiki-status-title', text: stateText })
+
+    // 观察态说明：连接保持但不同步，用户需要知道为什么 + 怎么恢复
+    if (state === 'observing') {
+      const hint = card.createDiv({ cls: 'owiki-callout owiki-callout-warning' })
+      hint.createDiv({
+        cls: 'owiki-callout-title',
+        text: '本设备未被选为同步设备',
+      })
+      hint.createDiv({
+        cls: 'owiki-callout-body',
+        text: '该 vault 已开启「单设备同步」，当前只有被选定的设备会同步文件。本设备连接保持（随时可被切换为同步设备），但修改不会上传。如需本设备同步，请在 OWiki Web 管理端的 vault 设置页更换选定设备。',
+      })
+    }
 
     // 次行：服务器地址（等宽字体）+ 服务端版本
     const meta = card.createDiv({ cls: 'owiki-status-meta' })
