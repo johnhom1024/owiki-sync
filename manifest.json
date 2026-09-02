@@ -1,9 +1,9 @@
 {
   "id": "owiki-sync",
   "name": "OWiki Sync",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "minAppVersion": "1.8.7",
-  "description": "Sync your notes across devices through your own server, browse and edit them from any web browser, and hand your AI agent an API key so it can read, write and organize your vault for you.",
+  "description": "Sync your notes across devices through your own server, browse and edit them as a personal wiki from any web browser, and hand your AI agent an API key so it can read, write and organize your vault for you.",
   "author": "johnhom",
   "isDesktopOnly": false
 }
