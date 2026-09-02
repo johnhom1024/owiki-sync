@@ -1,6 +1,6 @@
 <div align="center">
 
-# owiki-sync
+# OWiki Sync
 
 Multi-device sync plugin for Obsidian
 

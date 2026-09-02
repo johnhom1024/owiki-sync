@@ -1,6 +1,6 @@
 <div align="center">
 
-# owiki-sync
+# OWiki Sync
 
 Obsidian 笔记多端同步插件
 
