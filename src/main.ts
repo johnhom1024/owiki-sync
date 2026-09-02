@@ -1108,9 +1108,9 @@ export default class OwikiSyncPlugin extends Plugin {
   /** 设置页开着的时候重绘它（授权状态变化时立即反映） */
   private rerenderSettings(): void {
     // 打开中的本插件设置 tab 会挂在自己的 containerEl 上；
-    // display() 重新渲染整个面板内容
+    // update() 重新拉取 getSettingDefinitions() 并重绘（1.13 声明式路径）
     if (this.settingTab && this.settingTab.containerEl?.isShown()) {
-      this.settingTab.display()
+      this.settingTab.update()
     }
   }
 }

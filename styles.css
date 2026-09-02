@@ -77,21 +77,15 @@
   transition: width 0.3s ease;
 }
 
-/* ---------- 设置页：分节标题 ---------- */
-.owiki-section-heading {
-  margin: 1.75em 0 0.75em;
-  padding-top: 0.75em;
-  border-top: 1px solid var(--background-modifier-border);
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+/* ---------- 设置页：声明式自定义块（状态卡 / 日志 / callout） ---------- */
+/* flattenSettingRow 把 Setting 行清成空容器，去掉默认 name/info 占位 */
+.setting-item.owiki-setting-custom {
+  display: block;
+  padding: 0;
+  border: none;
 }
-/* 第一节（状态卡下方）不需要顶部分隔线 */
-.owiki-section-heading:first-of-type {
-  border-top: none;
-  padding-top: 0;
+.setting-item.owiki-setting-custom + .setting-item.owiki-setting-custom {
+  margin-top: 0;
 }
 
 /* ---------- 设置页：状态仪表卡 ---------- */
