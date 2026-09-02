@@ -6,7 +6,8 @@ export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 const MAX_BUFFER = 500 // 内存里最多保留 500 条（查看用）
 const FLUSH_INTERVAL = 2_000 // 落盘间隔：批量写，减少 IO
-const LOG_FILE = '.obsidian/plugins/owiki-sync/log.txt'
+/** 日志文件相对路径（configDir 通常是 .obsidian，但可被用户自定义） */
+const logFile = (app: App): string => `${app.vault.configDir}/plugins/owiki-sync/log.txt`
 
 interface LogEntry {
   time: string
@@ -41,14 +42,14 @@ export class OwikiLogger {
   attach(app: App): void {
     this.app = app
     if (!this.timer) {
-      this.timer = setInterval(() => void this.flush(), FLUSH_INTERVAL)
+      this.timer = window.setInterval(() => void this.flush(), FLUSH_INTERVAL)
     }
   }
 
   /** 插件 onunload 时调用：立刻落盘并停定时器 */
   async dispose(): Promise<void> {
     if (this.timer) {
-      clearInterval(this.timer)
+      window.clearInterval(this.timer)
       this.timer = null
     }
     await this.flush()
@@ -103,6 +104,7 @@ export class OwikiLogger {
     this.dirty = false
     try {
       const adapter = this.app.vault.adapter
+      const LOG_FILE = logFile(this.app)
       const existing = (await adapter.exists(LOG_FILE))
         ? await adapter.read(LOG_FILE)
         : ''
@@ -126,7 +128,7 @@ export class OwikiLogger {
     this.dirty = false
     if (this.app) {
       try {
-        await this.app.vault.adapter.write(LOG_FILE, '')
+        await this.app.vault.adapter.write(logFile(this.app), '')
       } catch {
         // ignore
       }

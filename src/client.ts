@@ -203,7 +203,7 @@ export class OwikiSyncClient {
     if (this.ws && this.ws.readyState === WebSocket.OPEN && this.deviceId) {
       this.rawSend(JSON.stringify({ type: 'bye', deviceId: this.deviceId }))
       // 等 ok（或 1s 超时）再断，尽量让 bye 到达服务端
-      await new Promise<void>((resolve) => setTimeout(resolve, 1000))
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 1000))
     }
     this.disconnect()
   }
@@ -265,7 +265,7 @@ export class OwikiSyncClient {
   /** 死连接检测：PONG_TIMEOUT 内没收到任何消息（含 ping）就强断重建 */
   private startDeadCheck(): void {
     this.stopDeadCheck()
-    this.deadCheckTimer = setInterval(() => {
+    this.deadCheckTimer = window.setInterval(() => {
       if (Date.now() - this.lastRecvAt > PONG_TIMEOUT_MS) {
         console.warn('[owiki] connection dead (no traffic), forcing reconnect')
         // 不等 onclose 了，直接重置：teardown 会触发 onclose → scheduleReconnect
@@ -279,7 +279,7 @@ export class OwikiSyncClient {
 
   private stopDeadCheck(): void {
     if (this.deadCheckTimer) {
-      clearInterval(this.deadCheckTimer)
+      window.clearInterval(this.deadCheckTimer)
       this.deadCheckTimer = null
     }
   }
@@ -303,8 +303,7 @@ export class OwikiSyncClient {
     if (this.reconnectTimer) return // 已有重连在排队
     const delay = Math.min(1000 * 2 ** this.retry, 30_000)
     this.retry++
-    console.log(`[owiki] reconnect in ${delay}ms (retry #${this.retry})`)
-    this.reconnectTimer = setTimeout(() => {
+    this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null
       this.connect()
     }, delay)
@@ -312,7 +311,7 @@ export class OwikiSyncClient {
 
   private cleanupTimers(): void {
     if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer)
+      window.clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
     }
     this.stopDeadCheck()

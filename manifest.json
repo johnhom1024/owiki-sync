@@ -1,7 +1,7 @@
 {
   "id": "owiki-sync",
   "name": "OWiki Sync",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "minAppVersion": "1.8.7",
   "description": "Sync your vault with a self-hosted OWiki server via WebSocket.",
   "author": "johnhom",

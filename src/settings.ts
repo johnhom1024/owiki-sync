@@ -66,12 +66,13 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
   refreshStatusCard(): void {
     const card = this.statusCardEl
     if (!card || !card.isConnected) return
-    const parent = card.parentElement
-    if (!parent) return
     // 渲染到临时容器再原位替换；renderStatusCard 内部会更新 statusCardEl 引用
-    const holder = document.createElement('div')
+    // createEl 是 Obsidian 给 HTMLElement 原型加的扩展（比 document.createElement 简洁）
+    const holder = document.body.createEl('div')
     this.renderStatusCard(holder)
-    if (holder.firstElementChild) parent.replaceChild(holder.firstElementChild, card)
+    const child = holder.firstElementChild
+    holder.remove()
+    if (child && card.parentElement) card.parentElement.replaceChild(child, card)
   }
 
   // ---------- 状态仪表卡 ----------
@@ -323,7 +324,7 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       .setDesc('全量对账：上报本地清单，按差异上传/下载')
       .addButton((btn) =>
         btn.setCta().setButtonText('立即同步').onClick(() => {
-          this.plugin.syncNow()
+          void this.plugin.syncNow()
         }),
       )
 
@@ -350,7 +351,7 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       .setDesc('清除本地保存的服务器地址与 Token')
       .addButton((btn) =>
         btn
-          .setWarning()
+          .setDestructive()
           .setButtonText('断开并取消授权')
           .onClick(() => {
             new ConfirmDisconnectModal(this.plugin.app, () => {
@@ -420,7 +421,7 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
     // 操作行
     new Setting(wrap)
       .setName('日志操作')
-      .setDesc('完整日志在 .obsidian/plugins/owiki-sync/log.txt')
+      .setDesc('完整日志在 <配置目录>/plugins/owiki-sync/log.txt')
       .addButton((btn) =>
         btn.setButtonText('复制').onClick(async () => {
           await navigator.clipboard.writeText(this.plugin.logger.recentText())

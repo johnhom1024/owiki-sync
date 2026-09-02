@@ -17,7 +17,6 @@ import {
   Conflict,
   Deleted,
   FetchResponse,
-  HashListDiff,
   HashListResponse,
   OK,
   Renamed,
@@ -133,7 +132,9 @@ export default class OwikiSyncPlugin extends Plugin {
 
     this.client = new OwikiSyncClient({
       onState: (s) => this.updateStatusBar(s),
-      onMessage: (m) => this.handleMessage(m),
+      onMessage: (m) => {
+        void this.handleMessage(m)
+      },
       // 认证成功（首连+每次重连）→ 记录授权的 vault 名 + 自动补对账
       onAuthed: (vault, syncEnabled) => {
         this.logger.info(
@@ -234,16 +235,16 @@ export default class OwikiSyncPlugin extends Plugin {
     )
     ribbonIconEl.addClass('owiki-ribbon')
 
-    // 命令：手动同步
+    // 命令：手动同步（命令 ID 无需插件前缀，Obsidian 会自动加 owiki-sync: 前缀）
     this.addCommand({
-      id: 'owiki-sync-now',
+      id: 'sync-now',
       name: '立即同步',
       callback: () => this.syncNow(),
     })
 
     // 命令：打开插件设置
     this.addCommand({
-      id: 'owiki-open-settings',
+      id: 'open-settings',
       name: '打开同步设置',
       callback: () => this.openPluginSettings(),
     })
@@ -252,25 +253,25 @@ export default class OwikiSyncPlugin extends Plugin {
     this.registerEvent(
       this.app.vault.on('modify', (file) => {
         if (!this.settings.autoSync) return
-        if (file instanceof TFile) this.onLocalChange(file)
+        if (file instanceof TFile) void this.onLocalChange(file)
       }),
     )
     this.registerEvent(
       this.app.vault.on('create', (file) => {
         if (!this.settings.autoSync) return
-        if (file instanceof TFile) this.onLocalChange(file)
+        if (file instanceof TFile) void this.onLocalChange(file)
       }),
     )
     this.registerEvent(
       this.app.vault.on('delete', (file) => {
         if (!this.settings.autoSync) return
-        if (file instanceof TFile) this.onLocalDelete(file)
+        if (file instanceof TFile) void this.onLocalDelete(file)
       }),
     )
     this.registerEvent(
       this.app.vault.on('rename', (file, oldPath) => {
         if (!this.settings.autoSync) return
-        if (file instanceof TFile) this.onLocalRename(file, oldPath)
+        if (file instanceof TFile) void this.onLocalRename(file, oldPath)
       }),
     )
 
@@ -302,7 +303,7 @@ export default class OwikiSyncPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData())
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()) as OwikiSettings
     // 注意：deviceId / deviceName 的初始化已挪到 onload 里 ensureDeviceIdentity。
     // 旧 data.json 里残留的字段会被迁移到 localStorage，data.json 留它们也无所谓，
     // 但下次 saveData 时会被覆盖成 undefined（OwikiSettings 不再含这俩字段）。
@@ -436,7 +437,7 @@ export default class OwikiSyncPlugin extends Plugin {
       (f) =>
         (f.extension === 'md' || isAttachment(f.path)) &&
         !f.path.endsWith('.conflict.md') &&
-        !f.path.startsWith('.obsidian/'),
+        !f.path.startsWith(`${this.app.vault.configDir}/`),
     )
     const entries: { path: string; hash: string; mtime: number }[] = []
 
@@ -514,7 +515,7 @@ export default class OwikiSyncPlugin extends Plugin {
     if (this.pendingUploads.size === 0) return
     // 断线中：保留 pending，10s 后重试（重连成功 onAuthed 也会触发 syncNow 兜底）
     if (!this.client.connected) {
-      setTimeout(() => this.debouncedFlush(), 10_000)
+      window.setTimeout(() => this.debouncedFlush(), 10_000)
       return
     }
     const paths = [...this.pendingUploads]
@@ -600,7 +601,7 @@ export default class OwikiSyncPlugin extends Plugin {
     let ups = 0
     let downs = 0
 
-    for (const d of resp.diffs as HashListDiff[]) {
+    for (const d of resp.diffs) {
       if (d.action === 'upload') {
         // 服务端没有/更旧 → 上传
         const f = this.app.vault.getAbstractFileByPath(d.path)
@@ -740,7 +741,9 @@ export default class OwikiSyncPlugin extends Plugin {
     try {
       const f = this.app.vault.getAbstractFileByPath(msg.path)
       if (f instanceof TFile) {
-        await this.app.vault.delete(f)
+        // 走回收站（尊重用户「删除至系统回收站/-trash 文件夹」的偏好设置），
+        // 误删可找回；.trash 内文件已被上面的 configDir 过滤排除，不会回传
+        await this.app.fileManager.trashFile(f)
       }
       this.localHashes.delete(msg.path)
       this.pendingUploads.delete(msg.path)
@@ -825,6 +828,8 @@ export default class OwikiSyncPlugin extends Plugin {
       console.warn('[owiki] create renamed to', dup.path, '- removing duplicate')
       this.applyingRemote.add(dup.path)
       try {
+        // 同步链路内部的重复文件清理（瞬时垃圾），直接删不走回收站；
+        // 目标路径的正确内容随后由 writeAdapter 写入
         await this.app.vault.delete(dup)
       } finally {
         this.applyingRemote.delete(dup.path)

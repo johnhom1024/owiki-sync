@@ -40,7 +40,7 @@ type LegacySettings = { deviceId?: unknown; deviceName?: unknown }
 
 /** 读：app.loadLocalStorage 不可序列化会返 null，按 string 处理。 */
 function readLs(app: App, key: string): string | null {
-  const v = app.loadLocalStorage(key)
+  const v: unknown = app.loadLocalStorage(key)
   if (v == null) return null
   if (typeof v === 'string') return v
   // 防御：旧版本若误存了非 string（理论上不会发生），降级为字符串
@@ -101,7 +101,7 @@ function migrateFromLegacySettings(app: App, settings: unknown): void {
   // 经 JSON 序列化往返后读回来仍是字符串，严格 === true 永远不成立，
   // 导致迁移每次启动重跑、把 data.json 的旧设备名反复写回 localStorage
   // （用户改的设备名重启即被回滚的根因）。宽松判断两种形态都认。
-  const flag = app.loadLocalStorage(KEY_MIGRATED)
+  const flag: unknown = app.loadLocalStorage(KEY_MIGRATED)
   if (flag === true || flag === 'true') return
   const legacy = (settings ?? null) as LegacySettings | null
   const legacyId =
