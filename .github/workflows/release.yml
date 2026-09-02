@@ -15,11 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 版本来自 package.json 的 packageManager: pnpm@11.10.0（action 自动读取）
       - uses: pnpm/action-setup@v4
-        with:
-          # 显式指定：action 只读仓库根 packageManager，本仓库无该字段。
-          # 版本 11：与 package.json 的 packageManager 声明及 pnpm-lock.yaml v9.0 对齐
-          version: 11
 
       - name: Use Node.js
         uses: actions/setup-node@v4
