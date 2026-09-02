@@ -3,6 +3,7 @@
 	"version": "1.0.0",
 	"description": "Sync your vault with a self-hosted owiki via WebSocket.",
 	"main": "main.js",
+	"packageManager": "pnpm@11.10.0",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "node esbuild.config.mjs production",
