@@ -6,6 +6,9 @@ An Obsidian plugin that syncs your vault across devices through a self-hosted [O
 
 Your notes never touch a third-party cloud — they only ever travel through your own server.
 
+> [!WARNING]
+> **Experimental software**: both this plugin and the OWiki server are in an early experimental stage. The sync logic has not been validated at scale, and edge cases **may cause note data loss or corruption**. **Back up your vault before connecting** (keep a full copy independent of the sync pipeline). **We are not responsible for any data loss caused by using this plugin** (see the [MIT LICENSE](LICENSE)).
+
 ## Features
 
 - **Incremental sync** — hash-list reconciliation; only changed files transfer. When both sides match, zero bytes move
