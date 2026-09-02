@@ -103,7 +103,8 @@ function migrateFromLegacySettings(app: App, settings: unknown): void {
   // （用户改的设备名重启即被回滚的根因）。宽松判断两种形态都认。
   const flag: unknown = app.loadLocalStorage(KEY_MIGRATED)
   if (flag === true || flag === 'true') return
-  const legacy = (settings ?? null) as LegacySettings | null
+  const legacy: LegacySettings | null =
+    settings && typeof settings === 'object' ? (settings as LegacySettings) : null
   const legacyId =
     legacy && typeof legacy.deviceId === 'string' ? legacy.deviceId.trim() : ''
   const legacyName =

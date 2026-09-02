@@ -828,9 +828,8 @@ export default class OwikiSyncPlugin extends Plugin {
       console.warn('[owiki] create renamed to', dup.path, '- removing duplicate')
       this.applyingRemote.add(dup.path)
       try {
-        // 同步链路内部的重复文件清理（瞬时垃圾），直接删不走回收站；
-        // 目标路径的正确内容随后由 writeAdapter 写入
-        await this.app.vault.delete(dup)
+        // Obsidian 自动改名产生的重复文件清理；走 trashFile 尊重删除偏好
+        await this.app.fileManager.trashFile(dup)
       } finally {
         this.applyingRemote.delete(dup.path)
       }
