@@ -31,10 +31,9 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm build
-          # esbuild 产物在 dist/，三件套归位到仓库根供 attest 与 release 上传
+          # esbuild 产物在 dist/，拷到仓库根供 attest 与 release 上传
+          # （manifest.json / styles.css 本就在根目录，无需拷贝）
           cp dist/main.js main.js
-          cp manifest.json manifest.json
-          cp styles.css styles.css
 
       - name: Generate artifact attestation
         uses: actions/attest@v4
