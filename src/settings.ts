@@ -351,7 +351,9 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       .setDesc('清除本地保存的服务器地址与 Token')
       .addButton((btn) =>
         btn
-          .setDestructive()
+          // setWarning 全版本可用；setDestructive 是 1.13.0 API，会破坏
+          // minAppVersion 1.8.7 的兼容承诺（弃用 ≠ 删除，保守选择）
+          .setWarning()
           .setButtonText('断开并取消授权')
           .onClick(() => {
             new ConfirmDisconnectModal(this.plugin.app, () => {
