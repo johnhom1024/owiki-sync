@@ -16,6 +16,10 @@ Sync notes across devices · Your notes only travel through your own server · O
 
 English · [中文](README.zh.md)
 
+<p>
+  <img src="docs/screenshots/plugin-settings-en.jpg" alt="OWiki Sync plugin settings" width="720">
+</p>
+
 </div>
 
 ---

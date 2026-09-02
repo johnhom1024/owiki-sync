@@ -16,6 +16,10 @@ Obsidian 笔记多端同步插件
 
 中文 · [English](README.md)
 
+<p>
+  <img src="docs/screenshots/plugin-settings-zh.jpg" alt="OWiki Sync 插件设置页" width="720">
+</p>
+
 </div>
 
 ---
