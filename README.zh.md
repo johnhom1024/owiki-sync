@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/logo.svg" width="96" height="96" alt="OWiki Sync">
+
 # OWiki Sync
 
 Obsidian 笔记多端同步插件
