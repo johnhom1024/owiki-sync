@@ -1,7 +1,7 @@
 {
 	"name": "owiki-sync",
 	"version": "1.0.0",
-	"description": "Sync your vault with a self-hosted owiki via WebSocket.",
+	"description": "Sync notes across devices on your own server, browse them as a personal wiki, and let your AI agent read and write the vault.",
 	"main": "main.js",
 	"packageManager": "pnpm@11.10.0",
 	"scripts": {
