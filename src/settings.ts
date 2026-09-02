@@ -8,6 +8,7 @@
 //   6. 危险区（断开并取消授权）
 // 所有颜色一律用 Obsidian 主题变量，明暗主题自动适配。
 import OwikiSyncPlugin from './main'
+import { t } from './lang/helpers'
 import {
   App,
   ButtonComponent,
@@ -45,7 +46,7 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
   getSettingDefinitions(): SettingDefinitionItem[] {
     return [
       {
-        name: '连接状态',
+        name: t('statusTitle'),
         searchable: false,
         render: (setting) => {
           this.flattenSettingRow(setting)
@@ -54,26 +55,26 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       },
       {
         type: 'group',
-        heading: '连接',
+        heading: t('groupConnection'),
         visible: () => !this.authorized(),
         items: [
           {
-            name: '如何获取授权信息',
+            name: t('howToAuthName'),
             searchable: true,
-            aliases: ['一键授权', 'WebSocket', '同步令牌'],
+            aliases: ['一键授权', 'One-click authorize', 'WebSocket', '同步令牌', 'token'],
             render: (setting) => {
               this.flattenSettingRow(setting)
               const banner = setting.settingEl.createDiv({ cls: 'owiki-callout owiki-callout-info' })
-              banner.createDiv({ cls: 'owiki-callout-title', text: '如何获取授权信息' })
+              banner.createDiv({ cls: 'owiki-callout-title', text: t('howToAuthName') })
               banner.createDiv({
                 cls: 'owiki-callout-body',
-                text: '打开 owiki Web 端的 vault 设置页，复制 WebSocket 地址与同步令牌；或直接使用「一键授权」跳转 Obsidian。填写后点「连接」，确认同步信息后开始同步。',
+                text: t('howToAuthBody'),
               })
             },
           },
           {
-            name: '服务器地址',
-            desc: 'owiki 的 WebSocket 地址，如 ws://localhost:8787/ws',
+            name: t('serverUrlName'),
+            desc: t('serverUrlDesc'),
             aliases: ['server', 'websocket', 'ws'],
             render: (setting) => {
               setting.addText((text) =>
@@ -87,8 +88,8 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
             },
           },
           {
-            name: 'Token',
-            desc: 'owiki Web 端 vault 设置页里的同步令牌',
+            name: t('tokenName'),
+            desc: t('tokenDesc'),
             aliases: ['令牌', 'sync token'],
             render: (setting) => {
               setting.addText((text) =>
@@ -102,13 +103,13 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
             },
           },
           {
-            name: '远程 vault 名称',
-            desc: '必填：Web 端创建 vault 时填写的名字。用于连接时核对——服务端返回的 vault 和这里不一致会弹窗提醒，避免把库同步错。',
+            name: t('vaultNameName'),
+            desc: t('vaultNameDesc'),
             aliases: ['vault'],
             render: (setting) => {
               setting.addText((text) =>
                 text
-                  .setPlaceholder('如：个人笔记')
+                  .setPlaceholder(t('vaultNamePlaceholder'))
                   .setValue(this.draftVaultHint)
                   .onChange((v) => {
                     this.draftVaultHint = v.trim()
@@ -117,23 +118,23 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
             },
           },
           {
-            name: '连接',
-            desc: '连接后会弹出确认框，确认同步信息后才开始同步',
+            name: t('connectName'),
+            desc: t('connectDesc'),
             render: (setting) => {
               setting.addButton((btn) =>
                 btn
                   .setCta()
-                  .setButtonText('连接')
+                  .setButtonText(t('connectButton'))
                   .onClick(async () => {
                     const serverUrl = this.draftServerUrl || this.plugin.settings.serverUrl
                     const token = this.draftToken || this.plugin.settings.token
                     const vaultHint = this.draftVaultHint
                     if (!serverUrl || !token) {
-                      new Notice('Owiki: 请先填写服务器地址和 Token')
+                      new Notice(`Owiki: ${t('noticeNeedServerAndToken')}`)
                       return
                     }
                     if (!vaultHint) {
-                      new Notice('Owiki: 请填写远程 vault 名称')
+                      new Notice(`Owiki: ${t('noticeNeedVaultName')}`)
                       return
                     }
                     this.plugin.settings.serverUrl = serverUrl
@@ -148,11 +149,11 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       },
       {
         type: 'group',
-        heading: '本机设备',
+        heading: t('groupDevice'),
         items: [
           {
-            name: '本机设备名',
-            desc: '仅本机可见。修改后点「保存」，会重连一次把新名字推给服务端。',
+            name: t('deviceNameName'),
+            desc: t('deviceNameDesc'),
             aliases: ['device name', '设备'],
             render: (setting) => {
               // 显式保存：输入只暂存本地变量，点「保存」才真正改名+重连。
@@ -168,7 +169,7 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
               setting
                 .addText((text) =>
                   text
-                    .setPlaceholder('如：Mac Studio')
+                    .setPlaceholder(t('deviceNamePlaceholder'))
                     .setValue(this.plugin.deviceName)
                     .onChange((v) => {
                       pendingName = v
@@ -177,17 +178,17 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
                 )
                 .addButton((btn) => {
                   saveBtn = btn
-                    .setButtonText('保存')
+                    .setButtonText(t('saveButton'))
                     .setCta()
                     .onClick(async () => {
                       const name = pendingName.trim()
                       if (!name || name === this.plugin.deviceName) {
-                        new Notice('Owiki: 设备名未变化')
+                        new Notice(`Owiki: ${t('noticeDeviceNameUnchanged')}`)
                         return
                       }
-                      btn.setDisabled(true).setButtonText('保存中…')
+                      btn.setDisabled(true).setButtonText(t('savingButton'))
                       await this.plugin.updateDeviceName(name)
-                      new Notice(`Owiki: 设备名已更新为「${name}」`)
+                      new Notice(`Owiki: ${t('noticeDeviceNameUpdated', { name })}`)
                       this.update()
                     })
                   syncSaveVisibility()
@@ -195,8 +196,8 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
             },
           },
           {
-            name: '本机设备 ID',
-            desc: '前 8 位。完整 ID 在日志里（首次加载有打印）。',
+            name: t('deviceIdName'),
+            desc: t('deviceIdDesc'),
             aliases: ['device id'],
             searchable: true,
             render: (setting) => {
@@ -207,12 +208,12 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       },
       {
         type: 'group',
-        heading: '同步',
+        heading: t('groupSync'),
         visible: () => this.authorized(),
         items: [
           {
-            name: '自动同步',
-            desc: '开启后编辑文件自动推送（2 秒防抖）',
+            name: t('autoSyncName'),
+            desc: t('autoSyncDesc'),
             aliases: ['auto sync'],
             control: {
               type: 'toggle',
@@ -220,24 +221,24 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
             },
           },
           {
-            name: '立即同步',
-            desc: '全量对账：上报本地清单，按差异上传/下载',
+            name: t('syncNowName'),
+            desc: t('syncNowDesc'),
             aliases: ['sync now'],
             render: (setting) => {
               setting.addButton((btn) =>
-                btn.setCta().setButtonText('立即同步').onClick(() => {
+                btn.setCta().setButtonText(t('syncNowButton')).onClick(() => {
                   void this.plugin.syncNow()
                 }),
               )
             },
           },
           {
-            name: '刷新授权状态',
-            desc: '重新连接服务器验证授权（token 是否仍有效）',
+            name: t('refreshAuthName'),
+            desc: t('refreshAuthDesc'),
             aliases: ['refresh', '授权'],
             render: (setting) => {
               setting.addButton((btn) =>
-                btn.setButtonText('刷新').onClick(() => {
+                btn.setButtonText(t('refreshAuthButton')).onClick(() => {
                   this.plugin.refreshAuthStatus()
                 }),
               )
@@ -247,19 +248,19 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       },
       {
         type: 'group',
-        heading: '诊断',
+        heading: t('groupDiagnostics'),
         items: [
           {
-            name: '版本信息',
-            aliases: ['version', '插件版本', '服务端版本'],
+            name: t('versionInfoName'),
+            aliases: ['version', '插件版本', '服务端版本', 'plugin version', 'server version'],
             render: (setting) => {
               this.flattenSettingRow(setting)
               this.renderVersionInfo(setting.settingEl)
             },
           },
           {
-            name: '运行日志',
-            aliases: ['log', '日志'],
+            name: t('logSectionName'),
+            aliases: ['log', '日志', 'logs'],
             render: (setting) => {
               this.flattenSettingRow(setting)
               this.renderLogSection(setting.settingEl)
@@ -269,18 +270,18 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       },
       {
         type: 'group',
-        heading: '危险操作',
+        heading: t('groupDanger'),
         visible: () => this.authorized(),
         items: [
           {
-            name: '断开连接并取消授权',
-            desc: '清除本地保存的服务器地址与 Token',
+            name: t('dangerName'),
+            desc: t('dangerDesc'),
             aliases: ['disconnect', 'logout', '取消授权'],
             render: (setting) => {
               setting.addButton((btn) =>
                 btn
                   .setDestructive()
-                  .setButtonText('断开并取消授权')
+                  .setButtonText(t('dangerButton'))
                   .onClick(() => {
                     new ConfirmDisconnectModal(this.plugin.app, () => {
                       void this.plugin.disconnectFromSettings()
@@ -338,26 +339,26 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
     let icon: string
     if (!vaultName) {
       if (this.plugin.settings.serverUrl) {
-        stateText = '未授权 · 等待在 Web 端批准'
+        stateText = t('statusUnauthWaiting')
         icon = 'circle-dashed'
       } else {
-        stateText = '未配置 · 在下方填写服务器信息'
+        stateText = t('statusUnconfigured')
         icon = 'circle-alert'
       }
     } else if (state === 'authed') {
-      stateText = `已连接到远程 OWiki · ${vaultName}`
+      stateText = t('statusConnectedVault', { vault: vaultName })
       icon = 'circle-check'
     } else if (state === 'observing') {
-      stateText = `已连接，非同步设备 · ${vaultName}`
+      stateText = t('statusObservingVault', { vault: vaultName })
       icon = 'circle-alert'
     } else if (state === 'connecting') {
-      stateText = `连接中 · ${vaultName}`
+      stateText = t('statusConnectingVault', { vault: vaultName })
       icon = 'circle-dashed'
     } else if (state === 'connected') {
-      stateText = `已连接，认证中 · ${vaultName}`
+      stateText = t('statusAuthenticatingVault', { vault: vaultName })
       icon = 'circle-dashed'
     } else {
-      stateText = `未连接 · 自动重连中（vault ${vaultName}）`
+      stateText = t('statusDisconnectedVault', { vault: vaultName })
       icon = 'circle-off'
     }
     setIcon(iconEl, icon)
@@ -367,11 +368,11 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       const hint = card.createDiv({ cls: 'owiki-callout owiki-callout-warning' })
       hint.createDiv({
         cls: 'owiki-callout-title',
-        text: '本设备未被选为同步设备',
+        text: t('observingTitle'),
       })
       hint.createDiv({
         cls: 'owiki-callout-body',
-        text: '该 vault 已开启「单设备同步」，当前只有被选定的设备会同步文件。本设备连接保持（随时可被切换为同步设备），但修改不会上传。如需本设备同步，请在 OWiki Web 管理端的 vault 设置页更换选定设备。',
+        text: t('observingBody'),
       })
     }
 
@@ -381,14 +382,14 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
       setIcon(server, 'server')
       server.createSpan({ text: this.plugin.settings.serverUrl })
     } else {
-      meta.createSpan({ cls: 'owiki-status-server owiki-muted', text: '未配置服务器地址' })
+      meta.createSpan({ cls: 'owiki-status-server owiki-muted', text: t('statusNoServer') })
     }
 
     if (this.plugin.syncTotal > 0) {
       const chips = card.createDiv({ cls: 'owiki-status-chips' })
       chips.createSpan({
         cls: 'owiki-chip owiki-chip-accent',
-        text: `同步中 ${this.plugin.syncDone}/${this.plugin.syncTotal}`,
+        text: t('syncProgress', { done: this.plugin.syncDone, total: this.plugin.syncTotal }),
       })
     }
   }
@@ -398,20 +399,20 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
   private renderVersionInfo(containerEl: HTMLElement): void {
     const wrap = containerEl.createDiv({ cls: 'owiki-subsection' })
     const header = wrap.createDiv({ cls: 'owiki-subsection-head' })
-    header.createSpan({ text: '版本信息' })
+    header.createSpan({ text: t('versionInfoHead') })
 
     const rows: Array<[string, string]> = [
-      ['插件版本', `v${this.plugin.clientVersion()}`],
-      ['最低 Obsidian', `v${this.plugin.minObsidianVersion()}`],
+      [t('versionPlugin'), `v${this.plugin.clientVersion()}`],
+      [t('versionMinObsidian'), `v${this.plugin.minObsidianVersion()}`],
     ]
     const liveServer = this.plugin.serverVersionLive()
     const cachedServer = this.plugin.serverVersionCached()
     if (liveServer) {
-      rows.push(['服务端（当前连接）', `v${liveServer}`])
+      rows.push([t('versionServerLive'), `v${liveServer}`])
     } else if (cachedServer) {
-      rows.push(['服务端（最近一次认证）', `v${cachedServer}`])
+      rows.push([t('versionServerCached'), `v${cachedServer}`])
     } else {
-      rows.push(['服务端', '未连接或服务端版本过旧'])
+      rows.push([t('versionServer'), t('versionServerUnknown')])
     }
     const table = wrap.createEl('table', { cls: 'owiki-version-table' })
     const tbody = table.createEl('tbody')
@@ -427,14 +428,14 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
   private renderLogSection(containerEl: HTMLElement): void {
     const wrap = containerEl.createDiv({ cls: 'owiki-subsection' })
     const head = wrap.createDiv({ cls: 'owiki-subsection-head' })
-    head.createSpan({ text: '运行日志' })
+    head.createSpan({ text: t('logSectionHead') })
 
     const logBox = wrap.createEl('pre', { cls: 'owiki-log-box' })
     this.renderLogBox = () => {
       const entries = this.plugin.logger.recent(80)
       logBox.empty()
       if (entries.length === 0) {
-        logBox.createSpan({ cls: 'owiki-log-empty', text: '（暂无日志）' })
+        logBox.createSpan({ cls: 'owiki-log-empty', text: t('logEmpty') })
         return
       }
       for (const e of entries) {
@@ -450,16 +451,16 @@ export class OwikiSyncSettingTab extends PluginSettingTab {
     this.renderLogBox()
 
     new Setting(wrap)
-      .setName('日志操作')
-      .setDesc('完整日志在 <配置目录>/plugins/owiki-sync/log.txt')
+      .setName(t('logActionsName'))
+      .setDesc(t('logActionsDesc'))
       .addButton((btn) =>
-        btn.setButtonText('复制').onClick(async () => {
+        btn.setButtonText(t('logCopyButton')).onClick(async () => {
           await navigator.clipboard.writeText(this.plugin.logger.recentText())
-          new Notice('Owiki: 日志已复制')
+          new Notice(`Owiki: ${t('noticeLogCopied')}`)
         }),
       )
       .addButton((btn) =>
-        btn.setButtonText('清空').onClick(async () => {
+        btn.setButtonText(t('logClearButton')).onClick(async () => {
           await this.plugin.logger.clear()
           this.renderLogBox()
         }),
@@ -479,22 +480,22 @@ class ConfirmDisconnectModal extends Modal {
   onOpen(): void {
     const { contentEl } = this
     contentEl.empty()
-    contentEl.createEl('h3', { text: '断开连接并取消授权？' })
+    contentEl.createEl('h3', { text: t('disconnectModalTitle') })
 
     const list = contentEl.createEl('ul', { cls: 'owiki-disconnect-list' })
     for (const item of [
-      '清除本地保存的服务器地址与同步令牌',
-      '通知服务端解绑本设备（服务端 vault 与已同步数据不受影响）',
-      '如需彻底作废令牌，请在 owiki Web 端点「取消授权」',
+      t('disconnectModalItem1'),
+      t('disconnectModalItem2'),
+      t('disconnectModalItem3'),
     ]) {
       list.createEl('li', { text: item })
     }
 
     const btns = contentEl.createDiv({ cls: 'owiki-confirm-buttons' })
-    const cancelBtn = btns.createEl('button', { text: '取消' })
+    const cancelBtn = btns.createEl('button', { text: t('cancelButton') })
     cancelBtn.addEventListener('click', () => this.close())
     const okBtn = btns.createEl('button', {
-      text: '断开并取消授权',
+      text: t('disconnectConfirmButton'),
       cls: 'mod-warning',
     })
     okBtn.addEventListener('click', () => {

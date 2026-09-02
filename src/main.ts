@@ -25,6 +25,7 @@ import {
 import { OwikiSyncSettingTab } from './settings'
 import { OwikiLogger } from './logger'
 import { ensureDeviceIdentity, setDeviceName, getDeviceId } from './device-identity'
+import { t } from './lang/helpers'
 
 interface OwikiSettings {
   serverUrl: string
@@ -128,7 +129,12 @@ export default class OwikiSyncPlugin extends Plugin {
     this.deviceId = identity.deviceId
     this.deviceName = identity.deviceName
     this.logger.attach(this.app)
-    this.logger.info('plugin', `插件加载：vault=${this.app.vault.getName()} deviceId=${this.deviceId?.slice(0, 8)}… deviceName=${this.deviceName} autoSync=${this.settings.autoSync}`)
+    this.logger.info('plugin', t('logPluginLoaded', {
+      vault: this.app.vault.getName(),
+      deviceId: this.deviceId?.slice(0, 8) ?? '',
+      deviceName: this.deviceName,
+      autoSync: this.settings.autoSync,
+    }))
 
     this.client = new OwikiSyncClient({
       onState: (s) => this.updateStatusBar(s),
@@ -139,7 +145,9 @@ export default class OwikiSyncPlugin extends Plugin {
       onAuthed: (vault, syncEnabled) => {
         this.logger.info(
           'auth',
-          `认证成功${vault ? `，远程 vault=「${vault}」` : ''}${syncEnabled === false ? '（非同步设备，观察态）' : ''}`,
+          vault
+            ? t(syncEnabled === false ? 'logAuthedObserving' : 'logAuthedVault', { vault })
+            : t('logAuthed'),
         )
         if (this.pendingConfirm) {
           // 设置页发起的连接：先弹确认框，确认后才开同步
@@ -158,7 +166,7 @@ export default class OwikiSyncPlugin extends Plugin {
         if (serverVersion !== undefined && serverVersion !== this.settings.serverVersion) {
           this.settings.serverVersion = serverVersion
           changed = true
-          this.logger.info('auth', `服务端版本：v${serverVersion}`)
+          this.logger.info('auth', t('logServerVersion', { version: serverVersion }))
         }
         if (changed) {
           void this.saveSettings()
@@ -173,16 +181,16 @@ export default class OwikiSyncPlugin extends Plugin {
         // 改名触发的重连：内容没变，跳过这次自动对账
         if (this.skipNextSync) {
           this.skipNextSync = false
-          this.logger.info('sync', '跳过自动对账（改名重连，内容未变）')
+          this.logger.info('sync', t('logSkipReconcileRename'))
           return
         }
         void this.syncNow()
       },
       // 同步资格在线切换（服务端 sync_state 推送）：静默 ↔ 同步互转
       onSyncEnabledChanged: (enabled, message) => {
-        this.logger.info('auth', message ?? (enabled ? '同步已恢复' : '本设备已被静默'))
+        this.logger.info('auth', message ?? (enabled ? t('logSyncResumed') : t('logSyncSilenced')))
         if (enabled) {
-          new Notice(`Owiki: ${message ?? '本设备已恢复同步，开始对账'}`)
+          new Notice(`Owiki: ${message ?? t('noticeSyncResumed')}`)
           // 静默期间收不到广播：恢复时必须补全量对账
           void this.syncNow()
         } else {
@@ -192,14 +200,14 @@ export default class OwikiSyncPlugin extends Plugin {
           this.syncTotal = 0
           this.syncDone = 0
           this.syncDownPaths.clear()
-          new Notice(`Owiki: ${message ?? '本设备未被选为同步设备，文件变更不会同步'}`)
+          new Notice(`Owiki: ${message ?? t('noticeSyncSilenced')}`)
           this.updateStatusBar('observing')
         }
         this.rerenderSettings()
       },
       // 认证失败 → 按原因区分提示，并清除本地授权状态
       onAuthFailed: (message) => {
-        this.logger.error('auth', `认证失败：${message ?? '未知原因'}`)
+        this.logger.error('auth', message ? t('logAuthFailed', { reason: message }) : t('logAuthFailedNoReason'))
         // 认证被拒也算连接流程终结：复位待确认标记，避免超时兜底重复弹提示
         this.pendingConfirm = false
         if (this.settings.authorizedVault !== undefined) {
@@ -211,9 +219,9 @@ export default class OwikiSyncPlugin extends Plugin {
         this.rerenderSettings()
         if (message === 'invalid token') {
           // token 对不上任何 vault（或 vault 已被删除）：两种可能都归到这条提示
-          new Notice('Owiki: Token 或 vault 名称有误，请核对后重试')
+          new Notice(`Owiki: ${t('noticeInvalidToken')}`)
         } else {
-          new Notice(`Owiki: 认证失败${message ? `（${message}）` : ''}`)
+          new Notice(`Owiki: ${t('noticeAuthFailed', { reason: message ? ` (${message})` : '' })}`)
         }
       },
     })
@@ -230,7 +238,7 @@ export default class OwikiSyncPlugin extends Plugin {
     this.updateStatusBar('disconnected')
 
     // 左侧栏 ribbon 图标：点击弹菜单
-    const ribbonIconEl = this.addRibbonIcon('refresh-cw', 'Owiki 同步', (evt) =>
+    const ribbonIconEl = this.addRibbonIcon('refresh-cw', t('ribbonTooltip'), (evt) =>
       this.showRibbonMenu(evt),
     )
     ribbonIconEl.addClass('owiki-ribbon')
@@ -238,14 +246,14 @@ export default class OwikiSyncPlugin extends Plugin {
     // 命令：手动同步（命令 ID 无需插件前缀，Obsidian 会自动加 owiki-sync: 前缀）
     this.addCommand({
       id: 'sync-now',
-      name: '立即同步',
+      name: t('cmdSyncNow'),
       callback: () => this.syncNow(),
     })
 
     // 命令：打开插件设置
     this.addCommand({
       id: 'open-settings',
-      name: '打开同步设置',
+      name: t('cmdOpenSettings'),
       callback: () => this.openPluginSettings(),
     })
 
@@ -296,7 +304,7 @@ export default class OwikiSyncPlugin extends Plugin {
   }
 
   onunload(): void {
-    this.logger.info('plugin', '插件卸载，断开连接')
+    this.logger.info('plugin', t('logPluginUnloaded'))
     this.client.disconnect()
     this.debouncedFlush?.cancel()
     void this.logger.dispose()
@@ -322,7 +330,7 @@ export default class OwikiSyncPlugin extends Plugin {
     if (!trimmed || trimmed === this.deviceName) return
     setDeviceName(this.app, trimmed)
     this.deviceName = trimmed
-    this.logger.info('settings', `本机设备名已更新为「${trimmed}」`)
+    this.logger.info('settings', t('logDeviceNameUpdated', { name: trimmed }))
     // 名字变了通知服务端：重连时 hello 消息会带新 deviceName，
     // 触发服务端 deviceRepo.Authenticate 刷新 DeviceName 字段。
     // 改名重连内容没变，跳过随后的全量对账（否则 1269 文件白跑一遍）
@@ -342,7 +350,7 @@ export default class OwikiSyncPlugin extends Plugin {
 
   /** 设置页展示用：拿到本机 deviceId 前 8 位（与服务端日志格式一致）。 */
   shortDeviceId(): string {
-    return this.deviceId ? this.deviceId.slice(0, 8) : '未生成'
+    return this.deviceId ? this.deviceId.slice(0, 8) : t('deviceIdNotGenerated')
   }
 
   /** 测试 / 调试用：完整 deviceId（不在 UI 默认展示，避免误读）。 */
@@ -397,12 +405,15 @@ export default class OwikiSyncPlugin extends Plugin {
     // action 塞进 params，覆盖 query 里的 action=authorize。handler 被调用
     // 本身就等于授权意图，无需再判断。
     if (!server || !token) {
-      new Notice('Owiki: 授权链接无效')
-      this.logger.warn('oauth', `深链参数无效：server=${server ? '有' : '无'} token=${token ? '有' : '无'}`)
+      new Notice(`Owiki: ${t('noticeOauthInvalid')}`)
+      this.logger.warn('oauth', t('logOauthInvalid', {
+        server: server ? 'yes' : 'no',
+        token: token ? 'yes' : 'no',
+      }))
       return
     }
 
-    this.logger.info('oauth', `收到一键授权深链${vault ? `（vault=「${vault}」）` : ''}`)
+    this.logger.info('oauth', t('logOauthDeepLink', { vault: vault ? ` (vault="${vault}")` : '' }))
 
     this.settings.serverUrl = server
     this.settings.token = token
@@ -415,7 +426,7 @@ export default class OwikiSyncPlugin extends Plugin {
     this.beginPendingConnect(vault)
 
     this.updateStatusBar('connecting')
-    new Notice(`Owiki: 正在连接${vault ? `「${vault}」` : ''}，请在弹窗中确认同步…`)
+    new Notice(`Owiki: ${vault ? t('noticeOauthConnectingVault', { vault }) : t('noticeOauthConnecting')}`)
   }
 
   // ---------- 同步流程 ----------
@@ -423,15 +434,15 @@ export default class OwikiSyncPlugin extends Plugin {
   /** 全量对账：上报本地清单 → 按 diffs 上传/下载 */
   async syncNow(): Promise<void> {
     if (!this.client.connected) {
-      new Notice('Owiki: 未连接服务器')
+      new Notice(`Owiki: ${t('noticeNotConnected')}`)
       return
     }
     if (this.client.connState === 'observing') {
       // 单设备同步模式：本设备未被选中，服务端会拒绝对账——不发起
-      new Notice('Owiki: 本设备未被选为同步设备（单设备同步模式），修改不会同步')
+      new Notice(`Owiki: ${t('noticeObservingNoSync')}`)
       return
     }
-    this.logger.info('sync', '开始全量对账')
+    this.logger.info('sync', t('logReconcileStart'))
     // md 笔记 + 二进制附件（图片等）
     const allFiles = this.app.vault.getFiles().filter(
       (f) =>
@@ -454,8 +465,8 @@ export default class OwikiSyncPlugin extends Plugin {
     }
 
     this.client.send(JSON.stringify({ type: 'hashlist', entries }))
-    this.logger.info('sync', `已上报清单（${entries.length} 个文件），等待差异结果`)
-    new Notice(`Owiki: 对账中（${entries.length} 个文件）`)
+    this.logger.info('sync', t('logManifestSent', { count: entries.length }))
+    new Notice(`Owiki: ${t('noticeReconciling', { count: entries.length })}`)
   }
 
   /** 读文件并算哈希：文本走 read，附件走二进制 */
@@ -556,7 +567,7 @@ export default class OwikiSyncPlugin extends Plugin {
         )
       } catch (e) {
         console.error('[owiki] upload failed:', path, e)
-        this.logger.error('upload', `上传失败 ${path}：${String(e)}`)
+        this.logger.error('upload', t('logUploadFailed', { path, error: String(e) }))
       }
     }
   }
@@ -588,7 +599,7 @@ export default class OwikiSyncPlugin extends Plugin {
         break
       case 'error':
         console.error('[owiki] server error:', msg.message)
-        this.logger.error('server', `服务端错误：${msg.message}`)
+        this.logger.error('server', t('logServerError', { message: msg.message }))
         new Notice(`Owiki: ${msg.message}`)
         break
       default:
@@ -626,14 +637,14 @@ export default class OwikiSyncPlugin extends Plugin {
       }
     }
     if (ups + downs > 0) {
-      this.logger.info('sync', `对账：${ups} 上传 / ${downs} 下载`)
+      this.logger.info('sync', t('logReconcileResult', { ups, downs }))
       // 启动进度跟踪：状态栏展示实时进度
       this.syncTotal = ups + downs
       this.syncDone = 0
       this.renderSyncProgress()
     } else {
-      this.logger.info('sync', '对账完成：已是最新')
-      new Notice('Owiki: 已是最新')
+      this.logger.info('sync', t('logReconcileClean'))
+      new Notice(`Owiki: ${t('noticeUpToDate')}`)
     }
   }
 
@@ -687,10 +698,10 @@ export default class OwikiSyncPlugin extends Plugin {
         }
         await this.app.vault.create(conflictPath, msg.serverContent)
       }
-      new Notice(`Owiki: 冲突 ${msg.path} → 远程副本已保存为 ${conflictPath}`)
+      new Notice(`Owiki: conflict ${msg.path} -> ${conflictPath}`)
     } catch (e) {
       console.error('[owiki] write conflict copy failed:', conflictPath, e)
-      new Notice(`Owiki: 冲突无法落盘 ${msg.path}`)
+      new Notice(`Owiki: conflict copy failed: ${msg.path}`)
     } finally {
       this.applyingRemote.delete(conflictPath)
     }
@@ -778,7 +789,7 @@ export default class OwikiSyncPlugin extends Plugin {
       }
     } catch (e) {
       console.error('[owiki] apply remote failed:', msg.path, e)
-      this.logger.error('download', `远程内容落盘失败 ${msg.path}：${String(e)}`)
+      this.logger.error('download', t('logDownloadFailed', { path: msg.path, error: String(e) }))
     } finally {
       this.applyingRemote.delete(msg.path)
     }
@@ -862,7 +873,7 @@ export default class OwikiSyncPlugin extends Plugin {
   private updateStatusBar(state: ConnState): void {
     if (this.lastConnState !== state) {
       this.lastConnState = state
-      this.logger.info('conn', `连接状态 -> ${state}`)
+      this.logger.info('conn', t('logConnState', { state }))
     }
     // 设置页开着时：连接状态变化只局部重绘状态卡（不整页重绘，不打断表单输入）
     this.settingTab?.refreshStatusCard()
@@ -887,12 +898,12 @@ export default class OwikiSyncPlugin extends Plugin {
     this.statusBarItem.createSpan({ text: 'Owiki' })
     if (state === 'authed') {
       this.statusBarItem.createSpan({
-        text: vaultName ? ` · ${vaultName}` : ' · 已授权',
+        text: vaultName ? ` · ${vaultName}` : t('statusBarAuthorized'),
         cls: 'owiki-status-vault',
       })
     } else if (state === 'observing') {
       this.statusBarItem.createSpan({
-        text: vaultName ? ` · 已连接 ${vaultName}（非同步设备）` : ' · 非同步设备',
+        text: vaultName ? t('statusBarObservingVault', { vault: vaultName }) : t('statusBarObserving'),
         cls: 'owiki-status-vault',
       })
     }
@@ -907,7 +918,7 @@ export default class OwikiSyncPlugin extends Plugin {
     this.statusBarItem.empty()
     this.statusBarItem.addClass('owiki-status')
     this.statusBarItem.createSpan({ cls: 'owiki-dot owiki-dot-syncing' })
-    this.statusBarItem.createSpan({ text: `同步中 ${this.syncDone}/${this.syncTotal}` })
+    this.statusBarItem.createSpan({ text: t('statusSyncingProgress', { done: this.syncDone, total: this.syncTotal }) })
     const bar = this.statusBarItem.createSpan({ cls: 'owiki-progress' })
     bar.createSpan({ cls: 'owiki-progress-fill' }).style.width = `${pct}%`
   }
@@ -920,8 +931,8 @@ export default class OwikiSyncPlugin extends Plugin {
     this.syncDownPaths.clear()
     this.updateStatusBar(this.lastConnState ?? 'authed')
     if (total > 0) {
-      this.logger.info('sync', `同步完成（${total} 项）`)
-      new Notice(`Owiki: 同步完成（${total} 项）`)
+      this.logger.info('sync', t('logSyncFinished', { count: total }))
+      new Notice(`Owiki: ${t('noticeSyncDone', { count: total })}`)
     }
   }
 
@@ -933,12 +944,14 @@ export default class OwikiSyncPlugin extends Plugin {
     const vaultName = this.settings.authorizedVault
     const observing = this.client.connState === 'observing'
     const stateText = observing
-      ? `已连接${vaultName ? `，「${vaultName}」` : ''}非同步设备（单设备同步模式）`
+      ? t('menuObservingVault', { vault: vaultName ? ` "${vaultName}"` : '' })
       : this.client.connected
-        ? `已连接${vaultName ? `，「${vaultName}」同步正常` : '，同步正常'}`
+        ? vaultName
+          ? t('menuConnectedVaultOk', { vault: vaultName })
+          : t('menuConnectedOk')
         : vaultName
-          ? `未连接服务器（已授权「${vaultName}」）`
-          : '未连接服务器'
+          ? t('menuDisconnectedVault', { vault: vaultName })
+          : t('menuDisconnected')
     menu.addItem((item) =>
       item
         .setTitle(`● ${stateText}`)
@@ -951,14 +964,14 @@ export default class OwikiSyncPlugin extends Plugin {
 
     menu.addItem((item) =>
       item
-        .setTitle('立即同步')
+        .setTitle(t('menuSyncNow'))
         .setIcon('refresh-cw')
         .onClick(() => void this.syncNow()),
     )
 
     menu.addItem((item) =>
       item
-        .setTitle('同步设置...')
+        .setTitle(t('menuSettings'))
         .setIcon('settings')
         .onClick(() => this.openPluginSettings()),
     )
@@ -966,13 +979,13 @@ export default class OwikiSyncPlugin extends Plugin {
     menu.addSeparator()
     menu.addItem((item) =>
       item
-        .setTitle(this.settings.autoSync ? '关闭自动同步' : '开启自动同步')
+        .setTitle(this.settings.autoSync ? t('menuAutoSyncOn') : t('menuAutoSyncOff'))
         .setIcon(this.settings.autoSync ? 'pause' : 'play')
         .onClick(async () => {
           this.settings.autoSync = !this.settings.autoSync
           await this.saveSettings()
           new Notice(
-            this.settings.autoSync ? 'Owiki: 自动同步已开启' : 'Owiki: 自动同步已关闭',
+            `Owiki: ${this.settings.autoSync ? t('noticeAutoSyncOn') : t('noticeAutoSyncOff')}`,
           )
         }),
     )
@@ -984,10 +997,10 @@ export default class OwikiSyncPlugin extends Plugin {
 
   /** 设置页「连接」按钮：认证成功后先弹确认框再同步 */
   connectFromSettings(vaultHint: string): void {
-    this.logger.info('connect', `设置页发起连接${vaultHint ? `（期望 vault=「${vaultHint.trim()}」）` : ''}`)
+    this.logger.info('connect', t('logConnectFromSettings', { vault: vaultHint ? ` (expected="${vaultHint.trim()}")` : '' }))
     this.hintFromUser = true
     this.beginPendingConnect(vaultHint.trim())
-    new Notice('Owiki: 正在连接服务器…')
+    new Notice(`Owiki: ${t('noticeConnecting')}`)
   }
 
   /**
@@ -1011,7 +1024,7 @@ export default class OwikiSyncPlugin extends Plugin {
 
   /** 设置页「断开并取消授权」：通知服务端解绑设备 + 断开 + 清除全部本地凭据 */
   async disconnectFromSettings(): Promise<void> {
-    this.logger.info('connect', '设置页断开连接，通知服务端解绑并清除本地凭据')
+    this.logger.info('connect', t('logDisconnect'))
     await this.client.disconnectWithBye()
     this.client.disconnect()
     this.settings.authorizedVault = undefined
@@ -1022,7 +1035,7 @@ export default class OwikiSyncPlugin extends Plugin {
     await this.saveSettings()
     this.updateStatusBar('disconnected')
     this.rerenderSettings()
-    new Notice('Owiki: 已断开连接并清除本地授权')
+    new Notice(`Owiki: ${t('noticeDisconnected')}`)
   }
 
   /**
@@ -1032,11 +1045,11 @@ export default class OwikiSyncPlugin extends Plugin {
    */
   refreshAuthStatus(): void {
     if (!this.settings.serverUrl || !this.settings.token) {
-      new Notice('Owiki: 请先填写服务器地址和 Token')
+      new Notice(`Owiki: ${t('noticeRefreshAuthMissing')}`)
       return
     }
-    this.logger.info('connect', '刷新授权状态：强制重连认证')
-    new Notice('Owiki: 正在刷新授权状态…')
+    this.logger.info('connect', t('logRefreshAuth'))
+    new Notice(`Owiki: ${t('noticeRefreshingAuth')}`)
     // configure 里 token/url 没变不会断开重连，这里显式断开再连，
     // 确保走一次完整认证（同时立刻校正服务端的 last_seen_at）
     this.client.disconnect()
@@ -1069,7 +1082,7 @@ export default class OwikiSyncPlugin extends Plugin {
         },
         async () => {
           // 确认同步：记录授权 vault 并开始全量对账
-          this.logger.info('connect', `用户确认同步到「${vault}」${mismatch ? '（名称不匹配仍确认）' : ''}`)
+          this.logger.info('connect', t('logConfirmSync', { vault, mismatch: mismatch ? t('logConfirmSyncMismatch') : '' }))
           this.settings.authorizedVault = vault
           await this.saveSettings()
           this.updateStatusBar('authed')
@@ -1078,11 +1091,11 @@ export default class OwikiSyncPlugin extends Plugin {
         },
         () => {
           // 取消：断开连接，不记录授权
-          this.logger.info('connect', `用户取消同步（远程 vault=「${vault}」）`)
+          this.logger.info('connect', t('logCancelSync', { vault }))
           this.client.disconnect()
           this.updateStatusBar('disconnected')
           this.rerenderSettings()
-          new Notice('Owiki: 已取消，未开始同步')
+          new Notice(`Owiki: ${t('noticeCancelled')}`)
         },
       ).open()
     }, 0)
@@ -1143,13 +1156,13 @@ class ConfirmSyncModal extends Modal {
   onOpen(): void {
     const { contentEl } = this
     contentEl.empty()
-    contentEl.createEl('h3', { text: '确认同步信息' })
+    contentEl.createEl('h3', { text: t('confirmModalTitle') })
 
     const list = contentEl.createEl('dl', { cls: 'owiki-confirm-list' })
-    this.addRow(list, '服务器', this.info.serverUrl)
-    this.addRow(list, '远程 vault', this.info.vault)
+    this.addRow(list, t('confirmModalServer'), this.info.serverUrl)
+    this.addRow(list, t('confirmModalVault'), this.info.vault)
     if (this.info.vaultHint) {
-      this.addRow(list, '你填写的名称', this.info.vaultHint)
+      this.addRow(list, t('confirmModalYourName'), this.info.vaultHint)
     }
     if (this.info.token) {
       this.addSecretRow(list, 'Token', this.info.token)
@@ -1159,28 +1172,28 @@ class ConfirmSyncModal extends Modal {
       const warn = contentEl.createDiv({ cls: 'owiki-callout owiki-callout-warning' })
       warn.createDiv({
         cls: 'owiki-callout-title',
-        text: 'vault 名称不匹配',
+        text: t('confirmModalMismatchTitle'),
       })
       warn.createDiv({
         cls: 'owiki-callout-body',
-        text: `你填写的名称是「${this.info.vaultHint}」，但这个 Token 实际对应「${this.info.vault}」。请核对是否连对了库，确认后将同步到「${this.info.vault}」。`,
+        text: t('confirmModalMismatchBody', { hint: this.info.vaultHint, vault: this.info.vault }),
       })
     } else {
       contentEl.createEl('p', {
         cls: 'owiki-confirm-hint',
-        text: `确认后将把当前 vault 与远程「${this.info.vault}」进行全量对账同步（双向）。`,
+        text: t('confirmModalHint', { vault: this.info.vault }),
       })
     }
 
     const btns = contentEl.createDiv({ cls: 'owiki-confirm-buttons' })
-    const cancelBtn = btns.createEl('button', { text: '取消' })
+    const cancelBtn = btns.createEl('button', { text: t('cancelButton') })
     cancelBtn.addEventListener('click', () => {
       this.decided = true
       this.close()
       this.onCancel()
     })
     const okBtn = btns.createEl('button', {
-      text: '确认同步',
+      text: t('confirmSyncButton'),
       cls: 'mod-cta',
     })
     okBtn.addEventListener('click', () => {
