@@ -247,7 +247,7 @@ grep '\[ws\] hello' /path/to/owiki.log | tail -5
 
 **版本号注入**：
 - 本地：`make build` 默认从 `git describe` 取（无 tag 时 `dev`），可 `make build VERSION=0.3.0` 覆盖
-- 镜像：`.cnb.yml` 自动传 `--build-arg VERSION=$(git describe --tags --always --dirty)`，
+- 镜像：`.github/workflows/release.yml` 自动传 `--build-arg VERSION=<tag 版本号>`，
   写入 `org.opencontainers.image.version` 标签
 
 **兼容性**：
