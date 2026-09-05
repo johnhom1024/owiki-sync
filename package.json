@@ -1,6 +1,6 @@
 {
   "name": "owiki-sync",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Sync notes across devices on your own server, browse them as a personal wiki, and let your AI agent read and write the vault.",
   "main": "main.js",
   "packageManager": "pnpm@11.10.0",
