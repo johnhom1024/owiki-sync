@@ -140,7 +140,7 @@ export default {
   logPluginUnloaded: '插件卸载，断开连接',
   logReconcileStart: '开始全量对账',
   logManifestSent: '已上报清单（{count} 个文件），等待差异结果',
-  logReconcileResult: '对账：{ups} 上传 / {downs} 下载',
+  logReconcileResult: '对账：{ups} 上传 / {downs} 下载 / {dels} 清本地孤儿',
   logReconcileClean: '对账完成：已是最新',
   logSkipReconcileRename: '跳过自动对账（改名重连，内容未变）',
   logSyncFinished: '同步完成（{count} 项）',

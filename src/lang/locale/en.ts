@@ -315,7 +315,7 @@ export default {
   logPluginUnloaded: 'Plugin unloaded, disconnecting',
   logReconcileStart: 'Starting full reconciliation',
   logManifestSent: 'Manifest sent ({count} files), waiting for diffs',
-  logReconcileResult: 'Reconciled: {ups} to upload / {downs} to download',
+  logReconcileResult: 'Reconciled: {ups} to upload / {downs} to download / {dels} local orphans removed',
   logReconcileClean: 'Reconciliation finished: already up to date',
   logSkipReconcileRename: 'Skipping auto reconciliation (rename reconnect, content unchanged)',
   logSyncFinished: 'Sync finished ({count} items)',

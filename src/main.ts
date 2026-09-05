@@ -22,6 +22,7 @@ import {
   Renamed,
   ServerMessage,
 } from './protocol'
+import { LocalSyncState, planReconcile } from './reconcile'
 import { OwikiSyncSettingTab } from './settings'
 import { OwikiLogger } from './logger'
 import { ensureDeviceIdentity, setDeviceName, getDeviceId } from './device-identity'
@@ -607,41 +608,52 @@ export default class OwikiSyncPlugin extends Plugin {
     }
   }
 
-  /** 对账结果处理：该传的传、该拉的拉 */
+  /** 对账结果处理：该传的传、该拉的拉、该清的本地孤儿清掉 */
   private async handleDiffs(resp: HashListResponse): Promise<void> {
+    const local: Map<string, LocalSyncState> = new Map()
+    for (const [path, e] of this.localHashes) {
+      local.set(path, { hash: e.hash, syncedHash: e.syncedHash })
+    }
+    const plan = planReconcile(resp.diffs, local, this.conflicted)
+
     let ups = 0
     let downs = 0
+    let dels = 0
 
-    for (const d of resp.diffs) {
-      if (d.action === 'upload') {
-        // 服务端没有/更旧 → 上传
-        const f = this.app.vault.getAbstractFileByPath(d.path)
-        if (f instanceof TFile && !this.conflicted.has(d.path) && !d.path.endsWith('.conflict.md')) {
-          this.pendingUploads.add(d.path)
-          this.pendingForce.add(d.path) // 对账已判定本端更新，允许覆盖
-          ups++
-        }
-      } else {
-        // 服务端更新 → fetch
-        this.client.send(JSON.stringify({ type: 'fetch', path: d.path }))
-        this.syncDownPaths.add(d.path)
-        downs++
+    for (const path of plan.uploads) {
+      const f = this.app.vault.getAbstractFileByPath(path)
+      if (f instanceof TFile) {
+        this.pendingUploads.add(path)
+        this.pendingForce.add(path) // 对账已判定本端更新，允许覆盖
+        ups++
       }
     }
+    for (const path of plan.downloads) {
+      this.client.send(JSON.stringify({ type: 'fetch', path }))
+      this.syncDownPaths.add(path)
+      downs++
+    }
+    for (const path of plan.localDeletes) {
+      await this.handleRemoteDelete({ type: 'deleted', path })
+      dels++
+    }
     if (ups > 0) this.debouncedFlush()
-    const diffPaths = new Set(resp.diffs.map((d) => d.path))
+    const skipSynced = new Set([...plan.uploads, ...plan.downloads, ...plan.localDeletes])
     for (const [path, e] of this.localHashes) {
-      if (!diffPaths.has(path)) {
+      if (!skipSynced.has(path)) {
         e.syncedHash = e.hash
         this.localHashes.set(path, e)
       }
     }
-    if (ups + downs > 0) {
-      this.logger.info('sync', t('logReconcileResult', { ups, downs }))
-      // 启动进度跟踪：状态栏展示实时进度
-      this.syncTotal = ups + downs
-      this.syncDone = 0
-      this.renderSyncProgress()
+    if (ups + downs + dels > 0) {
+      this.logger.info('sync', t('logReconcileResult', { ups, downs, dels }))
+      this.syncTotal = ups + downs + dels
+      this.syncDone = dels // 本地孤儿删除已经做完
+      if (this.syncDone >= this.syncTotal) {
+        this.finishSync()
+      } else {
+        this.renderSyncProgress()
+      }
     } else {
       this.logger.info('sync', t('logReconcileClean'))
       new Notice(`Owiki: ${t('noticeUpToDate')}`)
@@ -717,7 +729,7 @@ export default class OwikiSyncPlugin extends Plugin {
   private hintFromUser = false
 
   private async handleRemoteRename(msg: Renamed): Promise<void> {
-    if (msg.from === msg.to) return
+    if (!msg.from || !msg.to || msg.from === msg.to) return
     this.applyingRemote.add(msg.from)
     this.applyingRemote.add(msg.to)
     try {
@@ -729,13 +741,16 @@ export default class OwikiSyncPlugin extends Plugin {
           await this.app.vault.createFolder(dir)
         }
         await this.app.fileManager.renameFile(src, msg.to)
+      } else if (src instanceof TFile && dest) {
+        // 目标已在（对账/另一路先落盘）：清掉旧路径，避免双份
+        await this.app.fileManager.trashFile(src)
       } else if (!src && !dest) {
         this.client.send(JSON.stringify({ type: 'fetch', path: msg.to }))
       }
       const prev = this.localHashes.get(msg.from)
       if (prev) {
         this.localHashes.delete(msg.from)
-        this.localHashes.set(msg.to, prev)
+        if (!this.localHashes.has(msg.to)) this.localHashes.set(msg.to, prev)
       }
       this.pendingUploads.delete(msg.from)
       this.conflicted.delete(msg.from)
